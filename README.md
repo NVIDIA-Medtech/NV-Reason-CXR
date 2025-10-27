@@ -1,5 +1,4 @@
 # NV-Reason-CXR-3B
-![](../.github/profile/reason.gif)
 
 ## Description
 NV-Reason-CXR-3B is a specialized vision-language model designed for medical reasoning and interpretation of chest X-ray images, with detailed explanations. The model combines visual understanding with medical reasoning capabilities, enabling healthcare professionals to access comprehensive analyses and engage in follow-up discussions about radiological findings. NV-Reason-CXR-3B provides step-by-step reasoning that mirrors clinical thinking patterns, making it valuable for educational and research applications in medical imaging.
