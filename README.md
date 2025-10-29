@@ -15,14 +15,13 @@ This model is for research and development only. It is intended to empower devel
 5. [Data](#data)  
 
 
-## Model Weights
-Model weights are available on Hugging Face 🤗 [\[NV-Reason-CXR-3B\]](https://huggingface.co/nvidia/NV-Reason-CXR-3B).
-You can also try a live 🩻 [\[Web Demo\]](https://huggingface.co/spaces/nvidia/nv-reason-cxr).
-
-
 ## Overview
 
 The goal of this repo is to provide examples for inference and training of the [NV-Reason-CXR-3B](https://huggingface.co/nvidia/NV-Reason-CXR-3B) model. Inference via the Hugging Face ecosystem is shown in Quick Start / Inference section. The training scripts show how to train using both SFT and RL (GRPO) workflows.
+
+- Model weights are available on Hugging Face 🤗 [\[NV-Reason-CXR-3B\]](https://huggingface.co/nvidia/NV-Reason-CXR-3B).
+- You can also try a live 🩻 [\[Web Demo\]](https://huggingface.co/spaces/nvidia/nv-reason-cxr).
+- More details are available in the 📝 [\[Paper\]](https://arxiv.org/abs/2510.23968).
 
 ## Introduction
 
@@ -31,8 +30,7 @@ Our approach is designed to learn how experts reason—not just what they conclu
 
 Inspired by reasoning-first training (DeepSeek-R1 and Open-R1), our approach combines a radiologist-style supervised fine-tuning (SFT) warm start with GRPO reinforcement learning (RL) and verifiable rewards defined over a list of chest X-ray abnormalities.
 
-We enlisted several experienced radiologists to annotate their internal reasoning while reading chest X-ray cases. To support this, we developed an internal web platform that makes thought capture as seamless as possible. The platform provides automated voice recording, transcription, error correction, and optional translation into English. We used both the collected human reasoning data and synthetic reasoning data for training with SFT, as well as abnormality list only (from MIMIC-CXR) for GRPO training.  The details of the data collection and model training will be available in associated paper soon.
-
+We enlisted several experienced radiologists to annotate their internal reasoning while reading chest X-ray cases. To support this, we developed an internal web platform that makes thought capture as seamless as possible. The platform provides automated voice recording, transcription, error correction, and optional translation into English. We used both the collected human reasoning data and synthetic reasoning data for training with SFT, as well as abnormality list only (from MIMIC-CXR) for GRPO training.  
 
 In an expert reader study, AI-assisted reasoning increased confidence, supported targeted error auditing, and reduced time to finalize reports—particularly for abnormal cases. On out-of-distribution (OOD) evaluation using the CheXpert test set, the model attains competitive multi-label classification while providing faithful rationales.
 
@@ -258,3 +256,27 @@ This project uses a number of Huggingface libraries, including TRL, Transformers
 - **Interactive Demo**: [Try it live on HuggingFace Spaces](https://huggingface.co/spaces/nvidia/nv-reason-cxr)
 - **Base Model**: [Qwen2.5-VL-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct)
 - **Datasets**: [MIMIC-CXR](https://physionet.org/content/mimic-cxr-jpg/2.1.0/) • [CheXpert](https://stanfordaimi.azurewebsites.net/datasets/8cbd9ed4-2eb9-4565-affc-111cf4f7ebe2)
+
+
+## License
+
+NV-Reason-CXR-3B model weights are released under the [NVIDIA OneWay Noncommercial License Agreement](https://huggingface.co/nvidia/NV-Reason-CXR-3B/blob/main/LICENSE).
+
+
+## Citation
+
+If you find our work helpful, please consider citing the [paper](https://arxiv.org/abs/2510.23968):
+```bibtex
+@misc{myronenko2025reasoning,
+      title={Reasoning Visual Language Model for Chest X-Ray Analysis}, 
+      author={Andriy Myronenko and Dong Yang and Baris Turkbey and Mariam Aboian and Sena Azamat and Esra Akcicek and Hongxu Yin and Pavlo Molchanov and Marc Edgar and Yufan He and Pengfei Guo and Yucheng Tang and Daguang Xu},
+      year={2025},
+      eprint={2510.23968},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      doi={10.48550/arXiv.2510.23968},
+      url={https://arxiv.org/abs/2510.23968}
+}
+```
+
+
