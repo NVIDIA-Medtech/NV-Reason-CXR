@@ -1,95 +1,89 @@
 import logging
 import os
 import sys
-from typing import Dict, Any, List
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
+from typing import Any
 
-import torch
 import datasets
-from datasets import  Value, disable_caching
-
+import torch
 import transformers
-from transformers import set_seed, AutoModelForImageTextToText
+from datasets import disable_caching
+from qwen_vl_utils import process_vision_info
+from transformers import AutoModelForImageTextToText, set_seed
 from transformers.trainer_utils import get_last_checkpoint
+from trl import GRPOConfig, GRPOTrainer, ModelConfig, ScriptArguments, TrlParser
+from vlm_rewards import accuracy_reward, accuracy_reward_hard, format_reward, get_soft_overshort_punishment, tag_count_reward
 
 from accelerate import PartialState
 
-from trl import ModelConfig, ScriptArguments, TrlParser, GRPOTrainer, GRPOConfig
-from vlm_rewards import (
-    accuracy_reward,
-    format_reward,
-    tag_count_reward,
-    accuracy_reward_hard,
-    get_soft_overshort_punishment
-)
-
-from qwen_vl_utils import process_vision_info
-disable_caching() 
+disable_caching()
 
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class VLMScriptArguments(ScriptArguments):
-    '''
+    """
     Additional command line arguments for the GRPO training script. For a full list of arguments, see the cofings/grpo_config.yaml file.
-    '''
+    """
 
-    reward_funcs: list[str] = field(default_factory=lambda: ["accuracy_reward_hard", "soft_overshort_punishment"], metadata={"help": "List of reward functions."})
+    reward_funcs: list[str] = field(
+        default_factory=lambda: ["accuracy_reward_hard", "soft_overshort_punishment"], metadata={"help": "List of reward functions."}
+    )
 
     dataset_path: str = field(default="grpo.jsonl", metadata={"help": "Path to the dataset json file."})
     dataset_root: str = field(default="datalists/", metadata={"help": "Path to the datalists root directory."})
-    image_dir: str = field(default="images/",  metadata={"help": "Path to the image directory."})
-                                  
+    image_dir: str = field(default="images/", metadata={"help": "Path to the image directory."})
+
     max_image_height: int = field(default=476, metadata={"help": "Max height e.g 512."})
     min_image_height: int = field(default=128, metadata={"help": "Min height e.g 128."})
 
 
-
 class VLM_GRPO_DataCollator:
-    '''
+    """
     VLM custom data collator for GRPO training, mainly to loads and resize images on the fly.
-    '''
+    """
+
     def __init__(self, image_dir, min_pixels, max_pixels):
         self.image_dir = image_dir
         self.min_pixels = min_pixels
         self.max_pixels = max_pixels
 
-    def __call__(self, examples: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
-
+    def __call__(self, examples: list[dict[str, Any]]) -> dict[str, torch.Tensor]:
         for e in examples:
             if isinstance(e["image"], str):
-                item = { 
+                item = {
                     "role": "user",
                     "content": [
                         {"type": "image", "image": os.path.join("file://" + self.image_dir, e["image"])},
                     ],
                 }
                 if self.max_pixels is not None:
-                    item["content"][0]["max_pixels"] = self.max_pixels 
-                    item["content"][0]["min_pixels"] = self.min_pixels 
+                    item["content"][0]["max_pixels"] = self.max_pixels
+                    item["content"][0]["min_pixels"] = self.min_pixels
 
                 image, _ = process_vision_info([item])
                 image = image[0]
                 e["image"] = image
 
         return examples
-       
+
 
 def print_input_config():
-    '''
+    """
     Prints the user provided input config.
-    '''
+    """
     args = sys.argv[1:]
     if "--config" in args and PartialState().is_main_process:
-        with open(args[args.index("--config")+1], 'r') as file:
+        with open(args[args.index("--config") + 1]) as file:
             print("Input config:", file.read().strip())
 
 
 def vlm_data_format_grpo(sample):
-    '''
+    """
     Formats the sample data for GRPO training.
-    '''
+    """
     prompt = [{"role": "user", "content": sample["conversations"][0]["value"]}]
     output = {"id": sample["id"], "solution": sample["solution"], "prompt": prompt, "image": sample["image"]}
     # print(f"output: {output}")
@@ -97,9 +91,9 @@ def vlm_data_format_grpo(sample):
 
 
 def main(script_args, training_args, model_args):
-    '''
+    """
     Main function for the GRPO training script.
-    '''
+    """
     set_seed(training_args.seed)
 
     ###############
@@ -126,7 +120,6 @@ def main(script_args, training_args, model_args):
     logger.info(f"Script parameters {script_args}")
     logger.info(f"Data parameters {training_args}")
 
-
     # Check for the last checkpoint if resuming from a previous run
     last_checkpoint = None
     if os.path.isdir(training_args.output_dir):
@@ -137,23 +130,25 @@ def main(script_args, training_args, model_args):
     ################
     # Load datasets
     ################
-    if  PartialState().num_processes > 8:
-        datasets.disable_progress_bars() 
+    if PartialState().num_processes > 8:
+        datasets.disable_progress_bars()
 
     min_pixels = script_args.min_image_height**2 if script_args.min_image_height is not None else None
     max_pixels = script_args.max_image_height**2 if script_args.max_image_height is not None else None
 
-    my_dataset = datasets.load_dataset("json", data_files=os.path.join(script_args.dataset_root, script_args.dataset_path), split='train', streaming=script_args.dataset_streaming)
+    my_dataset = datasets.load_dataset(
+        "json", data_files=os.path.join(script_args.dataset_root, script_args.dataset_path), split="train", streaming=script_args.dataset_streaming
+    )
     train_dataset = my_dataset.map(vlm_data_format_grpo, remove_columns=["conversations"])
 
     if not isinstance(train_dataset, datasets.IterableDataset):
         logger.info(f"Created dataset mixture with {len(train_dataset)} examples")
 
-    training_args.accelerator_config.dispatch_batches = False 
-    if script_args.dataset_streaming: # streaming is not supported with GRPOTrainer yet, but just in case we use it in the future
+    training_args.accelerator_config.dispatch_batches = False
+    if script_args.dataset_streaming:  # streaming is not supported with GRPOTrainer yet, but just in case we use it in the future
         train_dataset = train_dataset.shuffle()
         training_args.dataloader_drop_last = True
-        training_args.ignore_data_skip = True 
+        training_args.ignore_data_skip = True
 
     #############################
     # Setup model
@@ -164,7 +159,7 @@ def main(script_args, training_args, model_args):
         torch_dtype=model_args.torch_dtype,
         trust_remote_code=model_args.trust_remote_code,
         attn_implementation=model_args.attn_implementation,
-        use_cache=False
+        use_cache=False,
     )
 
     ########################
@@ -175,10 +170,9 @@ def main(script_args, training_args, model_args):
         "format": format_reward,
         "tag_count": tag_count_reward,
         "accuracy_reward_hard": accuracy_reward_hard,
-        "soft_overshort_punishment": get_soft_overshort_punishment
+        "soft_overshort_punishment": get_soft_overshort_punishment,
     }
     reward_funcs = [REWARD_FUNCS_REGISTRY[func] for func in script_args.reward_funcs]
-
 
     ###############
     # GRPO trainer
@@ -191,8 +185,7 @@ def main(script_args, training_args, model_args):
     )
 
     # streaming is not supported for grpo yet, so we load images on the fly in custom data_collator
-    trainer.data_collator = VLM_GRPO_DataCollator(image_dir=script_args.image_dir, min_pixels=min_pixels, max_pixels=max_pixels) 
-
+    trainer.data_collator = VLM_GRPO_DataCollator(image_dir=script_args.image_dir, min_pixels=min_pixels, max_pixels=max_pixels)
 
     ###############
     # Training loop
@@ -224,22 +217,23 @@ def main(script_args, training_args, model_args):
         trainer.model.config.use_cache = True
         trainer.model.config.save_pretrained(training_args.output_dir)
 
-
-    logger.info(f"All done! Congrats reaching this point! Please consider citing this work and starring the repo if you found it useful: https://github.com/NVIDIA-Medtech/NV-Reason-CXR")
+    logger.info(
+        "All done! Congrats reaching this point! Please consider citing this work and starring the repo if you found it useful: https://github.com/NVIDIA-Medtech/NV-Reason-CXR"
+    )
 
 
 if __name__ == "__main__":
-    '''
+    """
     Main entry point for the GRPO training script.
-    '''
+    """
 
     print_input_config()
 
-    parser = TrlParser((VLMScriptArguments, GRPOConfig, ModelConfig)) # parse arguments
+    parser = TrlParser((VLMScriptArguments, GRPOConfig, ModelConfig))  # parse arguments
     script_args, training_args, model_args = parser.parse_args_and_config()
 
     # set WANDB run name
     if training_args.run_name is None:
-        training_args.run_name = training_args.output_dir.split("/")[-1] 
+        training_args.run_name = training_args.output_dir.split("/")[-1]
 
     main(script_args, training_args, model_args)
