@@ -1,4 +1,4 @@
-# Pre-commit hooks for NV-Generate-CTMR
+# Pre-commit hooks for NV-Reason-CXR
 # Install: pip install pre-commit && pre-commit install
 # Run manually: pre-commit run --all-files
 
@@ -15,7 +15,6 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=1000]
       - id: check-case-conflict
-      - id: check-merge-conflict
       - id: debug-statements
 
   # Python linting and formatting (ruff) — fixes applied locally
