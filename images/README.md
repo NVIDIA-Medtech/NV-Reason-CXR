@@ -1,1 +1,3 @@
+# Images
+
 This folder is a placeholder to download x-ray images into, when following the training examples.

@@ -1,7 +1,7 @@
 
 # ENV vars
 env:
-    WANDB_PROJECT : nv-reason-cxr  
+    WANDB_PROJECT : nv-reason-cxr
 
 # Data training arguments
 dataset_name: nv-reason-cxr-data
@@ -36,16 +36,16 @@ gradient_checkpointing_kwargs:
   use_reentrant: false
 
 optim: adamw_torch_fused
-learning_rate: 2.0e-05 
+learning_rate: 2.0e-05
 lr_scheduler_type: cosine
 warmup_ratio: 0.03
 max_grad_norm: 0.3
 
-do_eval: false 
+do_eval: false
 eval_strategy: "no"
 
-save_steps: 100  
-save_total_limit: 3 
+save_steps: 100
+save_total_limit: 3
 
 bf16: true
 tf32: true
@@ -59,12 +59,12 @@ seed: 123
 # run_name: run_name #defaults to output folder name
 report_to: wandb
 log_level: info
-logging_steps: 20  
+logging_steps: 20
 logging_strategy: steps
 
 #VLM specific
-remove_unused_columns: false 
+remove_unused_columns: false
 dataset_text_field: ""
-dataset_kwargs: {"skip_prepare_dataset": True} 
-dataset_num_proc: 4 
+dataset_kwargs: {"skip_prepare_dataset": True}
+dataset_num_proc: 4
 max_length: null
